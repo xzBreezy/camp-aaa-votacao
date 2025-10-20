@@ -1,19 +1,31 @@
-# Camp AAA votação (Semifinal)
-Site estático com votação popular (Formspree) e placar ao vivo opcional.
+# Camp AAA – Results API (Vercel)
+API serverless pra agregar votos (Formspree → JSON) e servir resultado ao vivo.
 
-## Como usar
-1) Abra `index.html` no navegador OU publique no Netlify/Vercel.
-2) O endpoint do Formspree já está setado como produção:
-   `https://formspree.io/f/mkgqeewj`
-3) Para ativar placar ao vivo, aponte `RESULTS_URL` para sua API (ex.: Vercel `/api/results`).
+## Endpoints
+- POST `/api/formspree-hook` → webhook do Formspree. Soma 1 voto no campo `wish`.
+- GET  `/api/results`        → retorna JSON agregado.
 
-## Estrutura
-- `index.html`: página da votação (mobile-first)
-- Anti-spam: 1 voto/dia via `localStorage`
+Formato do JSON:
+{
+  "updated_at": "2025-10-20T01:50:00Z",
+  "wish": {
+    "Meninas Super Poderosas": 10,
+    "Panceiros": 7,
+    "Bagrenarok": 4
+  }
+}
 
-## Deploy rápido (Vercel)
-- Crie um repositório no GitHub (camp-aaa-votacao)
-- Faça upload destes arquivos
-- Na Vercel, importe o repo e **Deploy**
+## Deploy (Vercel)
+1. Cria repo no GitHub (camp-aaa-results-api)
+2. Sobe esses arquivos.
+3. Importa no Vercel e **Deploy**.
 
-Boa final! 🏆
+## Formspree → Webhook
+- Em **Workflows/Webhooks** adicione:
+  - URL: `https://SEU-DOMINIO.vercel.app/api/formspree-hook`
+  - Payload: JSON
+- O widget envia: `{ wish: "<opção>" }` e a API soma no blob público.
+
+## Front-end (widget)
+No seu `index.html`:
+const RESULTS_URL = "https://SEU-DOMINIO.vercel.app/api/results";
