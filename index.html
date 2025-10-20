@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Camp AAA Aram — Votação: Quem vai pra semifinal</title>
+  <meta name="description" content="Votação popular — escolha quem você quer ver na semifinal do Camp AAA Aram.">
+  <style>
+    :root{ --bg:#0a0e14; --panel:#0f1624; --edge:#253248; --gold:#f4d26a; --muted:#9fb0c5; --text:#eef3fb; }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui,Inter,Segoe UI,Roboto,Arial; background:radial-gradient(1200px 600px at 10% -10%, #18223255, transparent 60%), var(--bg); color:var(--text)}
+    .wrap{max-width:720px; margin:24px auto; padding:18px}
+    .card{background:linear-gradient(180deg,#121a29,#0a0e14); border:1px solid var(--edge); border-radius:16px; box-shadow:0 10px 28px #0008; padding:18px}
+    h1{margin:0 0 6px; font-size:clamp(22px,5vw,30px); text-transform:uppercase; letter-spacing:.04em}
+    .tag{color:var(--gold); font-weight:800; letter-spacing:.2em; font-size:12px; margin-bottom:10px}
+    .match{display:block; margin:12px 0}
+    .team{display:flex; align-items:center; gap:10px; background:#0b111a; border:1px solid #22314a; border-radius:12px; padding:12px}
+    .team+.team{margin-top:8px}
+    .team img{width:40px; height:40px; border-radius:8px}
+    .team label{flex:1; font-weight:800; text-transform:uppercase}
+    .team input{accent-color:var(--gold); width:18px; height:18px}
+    .hint{color:var(--muted); font-size:12px}
+    .cta{display:flex; gap:10px; margin-top:12px}
+    button{flex:1; background:linear-gradient(180deg,#1a2433,#0f1624); color:#fff; border:1px solid #33435e; border-radius:12px; padding:12px 16px; font-weight:900; text-transform:uppercase; letter-spacing:.05em}
+    button:disabled{opacity:.6}
+    .ok{display:none; text-align:center; padding:18px; background:#0b1117; border:1px dashed #2a3850; border-radius:12px; margin-top:12px}
+    .badge{display:inline-block; padding:6px 10px; border-radius:10px; background:#0b1117; border:1px solid #2a3850; font-size:12px; margin-top:8px}
+    .bar{height:10px; background:#1b2538; border-radius:999px; overflow:hidden}
+    .bar>span{display:block; height:100%; background:linear-gradient(90deg,#f4d26a,#d8a531); width:0}
+    .row-res{display:flex; justify-content:space-between; align-items:center; margin:6px 0}
+    .pct{font-variant-numeric:tabular-nums; width:52px; text-align:right}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="tag">VOTAÇÃO POPULAR</div>
+      <h1>Quem vcs querem ver na SEMIFINAL – Camp AAA Aram?</h1>
+      <p class="hint">Escolhe <strong>um</strong> time. 1 voto por dispositivo/dia. Resultado popular <em>não</em> substitui o jogo oficial.</p>
+      <div id="modeBadge" class="badge" style="display:none"></div>
+
+      <div class="match">
+        <div class="team">
+          <input type="radio" name="wish" id="wish_msp" value="Meninas Super Poderosas">
+          <img src="https://i.postimg.cc/GtdVhsNJ/MENINAS-SUPER-PODEROSAS.png" alt="Meninas Super Poderosas">
+          <label for="wish_msp">Meninas Super Poderosas</label>
+        </div>
+        <div class="team">
+          <input type="radio" name="wish" id="wish_panceiros" value="Panceiros">
+          <img src="https://i.postimg.cc/d36X7VPf/PANCEIROS.png" alt="Panceiros">
+          <label for="wish_panceiros">Panceiros</label>
+        </div>
+        <div class="team">
+          <input type="radio" name="wish" id="wish_bagrenarok" value="Bagrenarok">
+          <img src="https://i.postimg.cc/QChwxWPp/BAGRENAROK.png" alt="Bagrenarok">
+          <label for="wish_bagrenarok">Bagrenarok</label>
+        </div>
+      </div>
+
+      <div class="cta">
+        <button id="voteBtn">Enviar voto</button>
+      </div>
+      <div id="ok" class="ok">✔️ Voto registrado! Valeu pela moral, campeão(a). 🟡</div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="tag">RESULTADO AO VIVO</div>
+      <div id="resultsStatus" class="hint">Modo demonstração: configure <code>RESULTS_URL</code> para ativar placar ao vivo.</div>
+
+      <h3 style="margin:10px 0 6px">Preferência da galera (quem vai pra semi)</h3>
+      <div class="row-res"><span>Meninas Super Poderosas</span><span class="pct" id="wish1Pct">0%</span></div>
+      <div class="bar"><span id="wish1Bar"></span></div>
+      <div class="row-res"><span>Panceiros</span><span class="pct" id="wish2Pct">0%</span></div>
+      <div class="bar"><span id="wish2Bar"></span></div>
+      <div class="row-res"><span>Bagrenarok</span><span class="pct" id="wish3Pct">0%</span></div>
+      <div class="bar"><span id="wish3Bar"></span></div>
+    </div>
+  </div>
+
+<script>
+  // ===== CONFIG =====
+  const FORM_ACTION = "https://formspree.io/f/mkgqeewj"; // produção
+  const RESULTS_URL = ""; // ex.: https://camp-aaa-results.vercel.app/api/results
+
+  const FIELD_WISH = "wish";
+  const FIELD_META = "meta";
+
+  // ===== Anti-spam (1 voto/dia) =====
+  const today = new Date().toISOString().slice(0,10);
+  const LOCK_KEY = `campAAA_voto_wish_${today}`;
+  const voted = localStorage.getItem(LOCK_KEY);
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const badge = document.getElementById('modeBadge');
+    badge.textContent = FORM_ACTION ? 'Modo produção – endpoint ativo' : 'Modo demonstração (sem endpoint)';
+    badge.style.display = 'inline-block';
+
+    if(voted){
+      document.getElementById('voteBtn').disabled = true;
+      document.getElementById('ok').style.display='block';
+    }
+
+    document.getElementById('voteBtn').addEventListener('click', async ()=>{
+      const wish = document.querySelector('input[name="wish"]:checked');
+      if(!wish){ alert('Seleciona um time pra votar, chefe.'); return; }
+
+      if(!FORM_ACTION){
+        localStorage.setItem(LOCK_KEY, Date.now());
+        document.getElementById('voteBtn').disabled = true;
+        document.getElementById('ok').style.display='block';
+        return;
+      }
+
+      const meta = {
+        ts: new Date().toISOString(),
+        ua: navigator.userAgent,
+        lang: navigator.language,
+        w: window.innerWidth, h: window.innerHeight
+      };
+
+      try{
+        await fetch(FORM_ACTION, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+          body: JSON.stringify({ [FIELD_WISH]: wish.value, [FIELD_META]: meta })
+        });
+        localStorage.setItem(LOCK_KEY, Date.now());
+        document.getElementById('voteBtn').disabled = true;
+        document.getElementById('ok').style.display='block';
+      }catch(e){
+        alert('Deu ruim no envio. Confere o endpoint do Formspree (FORM_ACTION).');
+        console.error(e);
+      }
+    });
+  });
+
+  // ===== Placar (se RESULTS_URL configurada) =====
+  function pct(n, total){ return total>0 ? Math.round((n/total)*100) : 0; }
+  function setBar(idBar, idPct, value){
+    document.getElementById(idBar).style.width = value + '%';
+    document.getElementById(idPct).textContent = value + '%';
+  }
+  async function fetchResults(){
+    const status = document.getElementById('resultsStatus');
+    if(!RESULTS_URL){ return; }
+    try{
+      const res = await fetch(RESULTS_URL, {cache:'no-store'});
+      const data = await res.json();
+      const wish = data.wish || {};
+      const msp = wish['Meninas Super Poderosas'] || 0;
+      const pan = wish['Panceiros'] || 0;
+      const bag = wish['Bagrenarok'] || 0;
+      const total = msp + pan + bag;
+      setBar('wish1Bar','wish1Pct', pct(msp,total));
+      setBar('wish2Bar','wish2Pct', pct(pan,total));
+      setBar('wish3Bar','wish3Pct', pct(bag,total));
+      status.textContent = `Atualizado: ${new Date(data.updated_at||Date.now()).toLocaleTimeString()}`;
+    }catch(err){
+      status.textContent = 'Não foi possível carregar o placar.';
+      console.error('[Resultados] erro', err);
+    }
+  }
+  setInterval(fetchResults, 10000);
+  fetchResults();
+</script>
+</body>
+</html>
